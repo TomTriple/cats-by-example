@@ -2,6 +2,7 @@ import cats.effect.IOApp
 import cats.effect.IO
 import cats.effect.ExitCode
 import cats.implicits._
+import scala.util.Try
 
 object MainTutEither extends IOApp {
 
@@ -20,51 +21,39 @@ object MainTutEither extends IOApp {
 
   */
 
-  type AppResult[A] = Either[Throwable, A]
+  type Parse[A] = Either[Throwable, A]
 
-  def validateNonEmpty(str:String):AppResult[String] = {
-    if(str.length() > 0)
-      Either.right(str)
-    else 
-      Either.left(new Throwable("str is empty"))
-  }
+  def integer1(str:String):Parse[Int] = Try(str.toInt).toEither
 
-  def validateMin(min:Int, str:String):AppResult[String] = 
-    Either.cond(str.size >= min, str, new Throwable(s"str has less than $min characters"))
+  def integer2(str:String):Parse[Int] = Either.catchNonFatal(str.toInt)
 
-  def validateMax(max:Int, str:String):AppResult[String] = 
-    Either.cond(str.size <= max, str, new Throwable(s"str has more than $max characters"))
+  def add(str1:String, str2:String) = for {
+    a <- integer1(str1)
+    b <- integer1(str2)
+  } yield a + b
 
-  def validateBetween(min:Int, max:Int, str:String):AppResult[String] = for {
-    a <- validateMin(min, str)
-    b <- validateMax(max, a)
-  } yield b
-  
+
+
   def run(args: List[String]): IO[ExitCode] = {
-    IO { 
+    IO {
+      
+      // println(Either.cond(false, "success value", new Throwable("an error occured")))
 
-      val result1 = validateNonEmpty("test")
-      // println(result)
+      // println(Either.fromOption(None, new Throwable("an error occured")))
 
-      val result2 = validateMin(3, "test")
-      // println(result2)
+      // println(integer1("34"))
 
-      val result3 = validateBetween(1, 10, "")
-      // println(result3)
+      // println(add("34", "8"))
 
-      // println(Either.catchNonFatal("55".toInt))
+      val result1 = add("-8", "0").flatMap(it => Either.cond(it >= 0, it, new Throwable(s"$it is not positive")) )
+      // println(result1)
 
-      // println(Either.fromOption(None, new Throwable("error")))
-
-      val result4 = validateBetween(1, 10, "test")
-
-      val result5 = result4.flatMap { str => Either.cond(str.length() >= 5, str, new Throwable("str is smaller than 5")) }
-      //println(result5)
-
-      val result6 = result5
+      val result2 = result1
         .leftMap(th => th.getMessage())
-        .fold(it => "value has errors: " + it, it => "value was correct: " + it)
-      println(result6)
+        .fold(it  => "value has errors: " + it, it => "value was correct: " + it)
+      println(result2)
+
+      
 
 
     }.as(ExitCode.Success)
